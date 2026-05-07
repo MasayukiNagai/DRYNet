@@ -1,12 +1,25 @@
 # DRYNet
 
 DRYNet (Dual Resolution Y-Net) predicts both base-resolution signal profiles and total signal counts from one-hot encoded DNA sequence. Its key design is a Y-net structure: profile prediction follows the encoder-decoder path, while count prediction can branch from the bottleneck representation.
-The convolutional modules and blocks follow an AlphaGenome-style sequence
-modeling design.
+The convolutional modules and blocks follow an AlphaGenome-style sequence modeling design.
 
 ## Requirements
 * PyTorch
 * Optional: PyYAML, only if loading YAML configs with `load_config`
+
+## Installation
+
+From this repository:
+
+```bash
+uv add "git+https://github.com/MasayukiNagai/DRYNet.git"
+# or
+uv pip install "git+https://github.com/MasayukiNagai/DRYNet.git"
+# or
+pip install "git+https://github.com/MasayukiNagai/DRYNet.git"
+```
+
+You can also likely copy the scripts in `drynet/` in your own project and modfiy them freely.
 
 ## Usage
 
