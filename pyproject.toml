@@ -1,7 +1,7 @@
 [project]
-name = "drynet"
+name = "capybara"
 version = "0.1.0"
-description = "Add your description here"
+description = "CAPYBARA: Count And Profile Y-net for Base-resolution Attribution, Regulatory design, and Allelic effect prediction."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

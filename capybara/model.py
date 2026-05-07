@@ -17,8 +17,8 @@ from .layers import (
 )
 
 
-class DRYNet(nn.Module):
-    """Dual Resolution Y-Net sequence-to-function model."""
+class CAPY(nn.Module):
+    """Count And Profile Y-net model."""
 
     def __init__(self, config: dict | None = None):
         super().__init__()

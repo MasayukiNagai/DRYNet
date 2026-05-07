@@ -3,11 +3,11 @@ import tempfile
 
 import torch
 
-from drynet import DRYNet, default_config, load_config
+from capybara import CAPY, default_config, load_config
 
 
 def main() -> None:
-    model = DRYNet(default_config())
+    model = CAPY(default_config())
     model.eval()
 
     with torch.no_grad():
@@ -18,10 +18,10 @@ def main() -> None:
     assert log_counts.shape == (2, 1), log_counts.shape
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        checkpoint_path = Path(tmpdir) / "drynet_state_dict.pt"
+        checkpoint_path = Path(tmpdir) / "capy_state_dict.pt"
         torch.save(model.state_dict(), checkpoint_path)
 
-        reloaded = DRYNet(default_config())
+        reloaded = CAPY(default_config())
         reloaded.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
         reloaded.eval()
 
@@ -33,7 +33,7 @@ def main() -> None:
 
     yaml_config_path = Path(__file__).resolve().parents[1] / "configs" / "default.yaml"
     try:
-        yaml_model = DRYNet(load_config(yaml_config_path))
+        yaml_model = CAPY(load_config(yaml_config_path))
     except ImportError:
         yaml_model = None
     if yaml_model is not None:
@@ -43,7 +43,7 @@ def main() -> None:
         assert yaml_profile_logits.shape == (2, 2, 1000), yaml_profile_logits.shape
         assert yaml_log_counts.shape == (2, 1), yaml_log_counts.shape
 
-    print("DRYNet smoke test passed.")
+    print("CAPY smoke test passed.")
 
 
 if __name__ == "__main__":

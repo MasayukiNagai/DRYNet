@@ -1,6 +1,9 @@
-# DRYNet (Dual Resolution Y-Net)
+# CAPYBARA
 
-DRYNet predicts both base-resolution signal profiles and total signal counts from one-hot encoded DNA sequence. Its key design is a Y-net structure: profile prediction follows the encoder-decoder path, while count prediction can branch from the bottleneck representation.
+CAPYBARA stands for Count And Profile Y-net for Base-resolution Attribution,
+Regulatory design, and Allelic effect prediction. The model class is CAPY.
+
+CAPY predicts both base-resolution signal profiles and total signal counts from one-hot encoded DNA sequence. Its key design is a Y-net structure: profile prediction follows the encoder-decoder path, while count prediction can branch from the bottleneck representation.
 The convolutional modules and blocks follow an AlphaGenome-style sequence modeling design.
 
 ## Requirements
@@ -12,24 +15,24 @@ The convolutional modules and blocks follow an AlphaGenome-style sequence modeli
 From this repository:
 
 ```bash
-uv add "git+https://github.com/MasayukiNagai/DRYNet.git"
+uv add "git+https://github.com/MasayukiNagai/CAPYBARA.git"
 # or
-uv pip install "git+https://github.com/MasayukiNagai/DRYNet.git"
+uv pip install "git+https://github.com/MasayukiNagai/CAPYBARA.git"
 # or
-pip install "git+https://github.com/MasayukiNagai/DRYNet.git"
+pip install "git+https://github.com/MasayukiNagai/CAPYBARA.git"
 ```
 
-You can also likely copy the scripts in `drynet/` in your own project and modfiy them freely.
+You can also likely copy the scripts in `capybara/` in your own project and modify them freely.
 
 ## Usage
 
 ```python
 import torch
 
-from drynet import DRYNet, default_config
+from capybara import CAPY, default_config
 
 config = default_config()
-model = DRYNet(config)
+model = CAPY(config)
 
 x = torch.randn(2, 4, 2048)
 profile_logits, log_counts = model(x)
@@ -43,10 +46,10 @@ Inputs may be shaped as either `(batch, 4, L)` or `(batch, L, 4)`.
 You can also load model configuration from YAML (with `pip install pyyaml`):
 
 ```python
-from drynet import DRYNet, load_config
+from capybara import CAPY, load_config
 
 config = load_config("configs/default.yaml")
-model = DRYNet(config)
+model = CAPY(config)
 ```
 
 ## Configuration Notes
@@ -62,10 +65,10 @@ feedback and results from other settings are welcome.
 Use plain PyTorch state dicts:
 
 ```python
-torch.save(model.state_dict(), "drynet_state_dict.pt")
+torch.save(model.state_dict(), "capy_state_dict.pt")
 
-model = DRYNet(default_config())
-model.load_state_dict(torch.load("drynet_state_dict.pt", map_location="cpu"))
+model = CAPY(default_config())
+model.load_state_dict(torch.load("capy_state_dict.pt", map_location="cpu"))
 ```
 
 If you have weights from another training framework, export them to a plain
@@ -76,13 +79,13 @@ PyTorch state dict before sharing them with this module.
 From the parent repository root:
 
 ```bash
-PYTHONPATH=drynet python drynet/examples/smoke_test.py
+PYTHONPATH=. python examples/smoke_test.py
 ```
 
 ## Architecture
 
 Most convolutional blocks and modules follow the AlphaGenome-style sequence
-modeling design. DRYNet uses an encoder-decoder backbone with skip connections,
+modeling design. CAPY uses an encoder-decoder backbone with skip connections,
 then predicts stranded profiles from decoder embeddings and total signal counts
 from a separate count head.
 
@@ -91,4 +94,4 @@ block combines a residual convolution unit with multi-head self-attention.
 
 The following represents the simplified architecture with default configurations.
 
-![DRYNet model architecture](model_architecture.png)
+![CAPY model architecture](model_architecture.png)
