@@ -1,9 +1,6 @@
 # DRYNet
 
-DRYNet (Dual Resolution Y-Net) predicts both base-resolution signal profiles
-and total signal counts from one-hot encoded DNA sequence. Its key design is a
-Y-net structure: profile prediction follows the encoder-decoder path, while
-count prediction can branch from the bottleneck representation.
+DRYNet (Dual Resolution Y-Net) predicts both base-resolution signal profiles and total signal counts from one-hot encoded DNA sequence. Its key design is a Y-net structure: profile prediction follows the encoder-decoder path, while count prediction can branch from the bottleneck representation.
 The convolutional modules and blocks follow an AlphaGenome-style sequence
 modeling design.
 
