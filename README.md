@@ -36,6 +36,14 @@ config = load_config("configs/default.yaml")
 model = DRYNet(config)
 ```
 
+## Configuration Notes
+
+The default configuration is a reasonable starting point, but it is not a
+strictly tuned recipe. In a local hyperparameter search with PRO-cap data,
+performance was not very sensitive to the exact hyperparameter set within the
+tested neighborhood. It is unclear how broadly that observation generalizes, so
+feedback and results from other settings are welcome.
+
 ## Checkpoints
 
 Use plain PyTorch state dicts:
