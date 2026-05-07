@@ -1,0 +1,48 @@
+dataset:
+  input_length: 2048
+  output_length: 1000
+
+model:
+  input_channels: 4
+  input_length: 2048
+  output_length: 1000
+  dna_embedder_channels: 64
+  num_groups: 8
+  encoder_channels: [128, 192, 256]
+  pool_size: 2
+  decoder_channels: [256, 192, 128, 64]
+  output_embedder_channels: 256
+  embedding_projector:
+    enabled: true
+  norm_type: batch
+  activation: gelu
+  dropout: 0.1
+
+  profile_head:
+    source: decoder
+    num_outputs: 2
+    kernel_size: 75
+
+  count_head:
+    type: ynet
+    source:
+    conv_hidden_dims: [128, 64]
+    mlp_hidden_dims: [64]
+    kernel_size: 5
+    pool_size: 2
+    adaptive_pool_size: 4
+    dropout: 0.1
+    norm_type: batch
+    mlp_norm_type: layer
+    num_groups: 8
+
+  bottleneck:
+    type: hybrid_attention
+    depth: 2
+    kernel_size: 5
+    dropout: 0.1
+    norm_type: batch
+    activation: gelu
+    num_heads: 4
+    attn_dropout: 0.1
+    mlp_ratio: 2.0
