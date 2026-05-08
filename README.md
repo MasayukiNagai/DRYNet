@@ -1,10 +1,12 @@
-# CAPYBARA
+# CAPY-BARA
 
-CAPYBARA stands for Count And Profile Y-net for Base-resolution Attribution,
-Regulatory design, and Allelic effect prediction. The model class is CAPY.
+CAPY-BARA stands for "Count And Profile Y-net"
+for "Base-resolution Attribution, Regulatory design, and Allelic effect prediction".
+
+CAPY-BARA is joint work by Masayuki Nagai and Yijie Kang.
 
 CAPY predicts both base-resolution signal profiles and total signal counts from one-hot encoded DNA sequence. Its key design is a Y-net structure: profile prediction follows the encoder-decoder path, while count prediction can branch from the bottleneck representation.
-The convolutional modules and blocks follow an AlphaGenome-style sequence modeling design.
+The convolutional modules and blocks follow an AlphaGenome modeling design.
 
 ## Requirements
 * PyTorch
@@ -95,3 +97,7 @@ block combines a residual convolution unit with multi-head self-attention.
 The following represents the simplified architecture with default configurations.
 
 ![CAPY model architecture](model_architecture.png)
+
+
+## Citation
+TODO: To be added with DOI
