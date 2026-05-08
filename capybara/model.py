@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch.nn as nn
 from torch import Tensor
 
-from .config import derive_shape_summary, normalize_config
+from .config import normalize_config
 from .layers import (
     Bottleneck,
     EmbeddingProjector,
@@ -24,12 +24,10 @@ class CAPY(nn.Module):
         super().__init__()
         self.config = normalize_config(config)
         model_cfg = self.config["model"]
-        shape_summary = derive_shape_summary(model_cfg)
 
         self.input_length = model_cfg["input_length"]
         self.output_length = model_cfg["output_length"]
         self.profile_embedding_length = self.output_length + model_cfg["profile_head"]["kernel_size"] - 1
-        self.shape_summary = shape_summary
 
         self.encoder = SequenceEncoder(
             input_channels=model_cfg["input_channels"],
@@ -103,7 +101,6 @@ class CAPY(nn.Module):
         self.count_head_source = model_cfg["count_head"]["source"]
         self.profile_feature_dimension = embedding_dims[self.profile_head_source]
         self.count_feature_dimension = embedding_dims[self.count_head_source]
-        self.count_embedding_length = self.profile_embedding_length if self.count_head_source == "decoder" else shape_summary.encoder_output_length
 
         self.profile_head = ProfileHead(
             input_channels=self.profile_feature_dimension,
