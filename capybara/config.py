@@ -1,19 +1,8 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-
-@dataclass(frozen=True)
-class ShapeSummary:
-    input_length: int
-    encoder_pool_size: int
-    n_encoder_stages: int
-    encoder_output_length: int
-    decoder_output_length: int
-    total_downsample_factor: int
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -184,51 +173,6 @@ def _validate_config_keys(config: dict[str, Any]) -> None:
     _reject_unknown_keys(model_cfg.get("bottleneck", {}), BOTTLENECK_KEYS, name="model.bottleneck")
 
 
-def ceil_div(value: int, divisor: int) -> int:
-    return (value + divisor - 1) // divisor
-
-
-def derive_shape_summary(model_cfg: dict[str, Any]) -> ShapeSummary:
-    input_length = int(model_cfg["input_length"])
-    pool_size = int(model_cfg["pool_size"])
-    encoder_channels = _ensure_list(model_cfg["encoder_channels"], name="encoder_channels")
-    if input_length <= 0:
-        raise ValueError("input_length must be positive.")
-    if pool_size < 1:
-        raise ValueError("pool_size must be >= 1.")
-
-    encoder_output_length = input_length
-    for _ in encoder_channels:
-        encoder_output_length = ceil_div(encoder_output_length, pool_size)
-    if encoder_output_length < 2:
-        raise ValueError(
-            "Encoder output length is too small for a stable bottleneck. "
-            f"Got encoder_output_length={encoder_output_length} for input_length={input_length}."
-        )
-
-    total_downsample_factor = pool_size ** len(encoder_channels)
-    return ShapeSummary(
-        input_length=input_length,
-        encoder_pool_size=pool_size,
-        n_encoder_stages=len(encoder_channels),
-        encoder_output_length=encoder_output_length,
-        decoder_output_length=encoder_output_length * total_downsample_factor,
-        total_downsample_factor=total_downsample_factor,
-    )
-
-
-def validate_short_sequence_support(model_cfg: dict[str, Any]) -> None:
-    trial_cfg = copy.deepcopy(model_cfg)
-    for trial_length in (281, 2048):
-        trial_cfg["input_length"] = trial_length
-        summary = derive_shape_summary(trial_cfg)
-        if summary.encoder_output_length < 2:
-            raise ValueError(
-                f"Configuration is not valid for short-sequence support at {trial_length} bp: "
-                f"encoder_output_length={summary.encoder_output_length}."
-            )
-
-
 def normalize_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
     if config is not None:
         _validate_config_keys(config)
@@ -328,6 +272,4 @@ def normalize_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
     bottleneck_cfg["attn_dropout"] = float(bottleneck_cfg["attn_dropout"])
     bottleneck_cfg["mlp_ratio"] = float(bottleneck_cfg["mlp_ratio"])
 
-    _ = derive_shape_summary(model_cfg)
-    validate_short_sequence_support(model_cfg)
     return config
