@@ -74,28 +74,23 @@ class CAPY(nn.Module):
                 activation=model_cfg["activation"],
                 dropout=model_cfg["dropout"],
             )
-            self.output_embedder = EmbeddingProjector(
-                decoder_channels[-1],
-                model_cfg["output_embedder_channels"],
-                norm_type=model_cfg["norm_type"],
-                num_groups=model_cfg["num_groups"],
-                activation=model_cfg["activation"],
-                dropout=model_cfg["dropout"],
-            )
-            embedding_dims = {
-                "encoder": model_cfg["encoder_channels"][-1],
-                "bottleneck": model_cfg["encoder_channels"][-1],
-                "decoder": model_cfg["output_embedder_channels"],
-            }
         else:
             self.encoder_projector = IdentityProjector()
             self.bottleneck_projector = IdentityProjector()
-            self.output_embedder = IdentityProjector()
-            embedding_dims = {
-                "encoder": model_cfg["encoder_channels"][-1],
-                "bottleneck": model_cfg["encoder_channels"][-1],
-                "decoder": decoder_channels[-1],
-            }
+
+        self.output_embedder = EmbeddingProjector(
+            decoder_channels[-1],
+            model_cfg["output_embedder_channels"],
+            norm_type=model_cfg["norm_type"],
+            num_groups=model_cfg["num_groups"],
+            activation=model_cfg["activation"],
+            dropout=model_cfg["dropout"],
+        )
+        embedding_dims = {
+            "encoder": model_cfg["encoder_channels"][-1],
+            "bottleneck": model_cfg["encoder_channels"][-1],
+            "decoder": model_cfg["output_embedder_channels"],
+        }
 
         self.profile_head_source = model_cfg["profile_head"]["source"]
         self.count_head_source = model_cfg["count_head"]["source"]
