@@ -60,7 +60,7 @@ train:
   count_loss_fn: log1pMSELoss
   counts_weight: 100.0
   max_epochs: 500
-  validation_iter: 100
+  validation_iter: null
   base_trainable: true
   precision: 32
 
@@ -86,3 +86,13 @@ lr_scheduler:
     min_lr: 1.0e-6
   lr_scheduler_kwargs:
     monitor: valid_loss
+
+wandb:
+  enabled: true
+  project: capybara-procap
+  entity:
+  mode: online
+  tags: []
+  group:
+  name:
+  notes:

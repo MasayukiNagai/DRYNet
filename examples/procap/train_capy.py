@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timestamp", type=str, default=None)
     parser.add_argument("--device", type=str, default="gpu", help="Device: gpu, cpu, auto, or a torch device string.")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging for this run.")
     return parser.parse_args()
 
 
@@ -35,6 +36,8 @@ def main() -> None:
 
     require_training_dependencies()
     params = read_yaml(args.params)
+    if args.no_wandb:
+        params.setdefault("wandb", {})["enabled"] = False
     model_cfg = load_config(args.params)
 
     dataset_params = params["dataset"]

@@ -12,6 +12,27 @@ from torch import Tensor, nn
 from capybara.losses import count_log1p_mse_loss, profile_mnll_loss
 from performance_metrics import compute_performance_metrics
 
+METRICS_COLUMNS = [
+    "row_type",
+    "epoch",
+    "iteration",
+    "train_loss",
+    "train_profile_loss",
+    "train_count_loss",
+    "train_loss_epoch",
+    "train_profile_loss_epoch",
+    "train_count_loss_epoch",
+    "valid_loss",
+    "valid_profile_loss",
+    "valid_count_loss",
+    "valid_jsd",
+    "valid_profile_pearson",
+    "valid_count_pearson",
+    "lr",
+    "elapsed_seconds",
+    "saved_best",
+    "epoch_complete",
+]
 
 def require_training_dependencies() -> None:
     missing = []
@@ -27,7 +48,6 @@ def require_training_dependencies() -> None:
             + ". Run these scripts in the GPU/Torch environment that has the PRO-cap dependencies installed."
         )
 
-
 def read_yaml(path: str | Path) -> dict[str, Any]:
     import yaml
 
@@ -39,7 +59,6 @@ def read_yaml(path: str | Path) -> dict[str, Any]:
         raise ValueError(f"Expected YAML mapping in {path}")
     return data
 
-
 def write_yaml(path: str | Path, data: dict[str, Any]) -> None:
     import yaml
 
@@ -48,17 +67,98 @@ def write_yaml(path: str | Path, data: dict[str, Any]) -> None:
     with path.open("w") as handle:
         yaml.safe_dump(data, handle, sort_keys=False)
 
+def to_wandb_config(value: Any) -> Any:
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): to_wandb_config(val) for key, val in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [to_wandb_config(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+class WandbLogger:
+    def __init__(
+        self,
+        *,
+        params: dict[str, Any],
+        output_paths: dict[str, Any],
+        metadata: dict[str, Any],
+    ) -> None:
+        self.run = None
+        self.wandb = None
+        self.disabled = False
+
+        wandb_cfg = params.get("wandb", {})
+        if not wandb_cfg.get("enabled", False):
+            self.disabled = True
+            return
+
+        try:
+            import wandb
+
+            self.wandb = wandb
+            file_config = metadata.get("file_config", {})
+            model_name = str(metadata.get("model_name", file_config.get("model_name", "model")))
+            cell_type = str(file_config.get("cell_type", "cell"))
+            fold = file_config.get("fold", "fold")
+            timestamp = str(file_config.get("timestamp", "run"))
+
+            run_name = wandb_cfg.get("name") or f"{model_name}-{cell_type}-fold{fold}-{timestamp}"
+            group = wandb_cfg.get("group") or f"{model_name}-{cell_type}"
+            config = {
+                "model_name": model_name,
+                "cell_type": cell_type,
+                "data_type": file_config.get("data_type"),
+                "fold": fold,
+                "timestamp": timestamp,
+                "params": params,
+                "file_config": file_config,
+                "output_paths": output_paths,
+            }
+
+            self.run = wandb.init(
+                project=wandb_cfg.get("project", "capybara-procap"),
+                entity=wandb_cfg.get("entity"),
+                name=run_name,
+                group=group,
+                tags=wandb_cfg.get("tags", []),
+                notes=wandb_cfg.get("notes"),
+                mode=wandb_cfg.get("mode", "online"),
+                config=to_wandb_config(config),
+            )
+        except Exception as exc:
+            self.disabled = True
+            print(f"Warning: wandb logging disabled because initialization failed: {exc}", flush=True)
+
+    def log(self, metrics: dict[str, Any]) -> None:
+        if self.disabled or self.wandb is None or self.run is None:
+            return
+        try:
+            step = metrics.get("iteration")
+            self.wandb.log(to_wandb_config(metrics), step=int(step) if step is not None else None)
+        except Exception as exc:
+            self.disabled = True
+            print(f"Warning: wandb logging disabled because log failed: {exc}", flush=True)
+
+    def finish(self) -> None:
+        if self.wandb is None or self.run is None:
+            return
+        try:
+            self.wandb.finish()
+        except Exception as exc:
+            print(f"Warning: wandb finish failed: {exc}", flush=True)
 
 def append_metrics(path: str | Path, row: dict[str, Any], *, write_header: bool) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    keys = list(row)
+    extra_keys = [key for key in row if key not in METRICS_COLUMNS]
+    keys = METRICS_COLUMNS + extra_keys
     with path.open("a") as handle:
         if write_header:
             handle.write("\t".join(keys) + "\n")
-        handle.write("\t".join(str(row[key]) for key in keys) + "\n")
-
-
+        handle.write("\t".join("" if row.get(key) is None else str(row.get(key, "")) for key in keys) + "\n")
 def select_device(device: str = "gpu") -> torch.device:
     device = device.lower()
     if device in {"gpu", "cuda"}:
@@ -71,10 +171,8 @@ def select_device(device: str = "gpu") -> torch.device:
         return torch.device("cpu")
     return torch.device(device)
 
-
 def move_batch(batch: dict[str, Tensor], device: torch.device) -> dict[str, Tensor]:
     return {key: value.to(device, non_blocking=True) for key, value in batch.items()}
-
 
 def compute_losses(
     model: nn.Module,
@@ -87,7 +185,6 @@ def compute_losses(
     count_loss = count_log1p_mse_loss(pred_log_counts, batch["y"])
     total_loss = profile_loss + float(counts_weight) * count_loss
     return total_loss, profile_loss, count_loss
-
 
 @torch.no_grad()
 def validate(model: nn.Module, dataloader, device: torch.device, counts_weight: float) -> dict[str, float]:
@@ -129,7 +226,6 @@ def validate(model: nn.Module, dataloader, device: torch.device, counts_weight: 
         "valid_count_loss": valid_count_loss,
     }
 
-
 def save_checkpoint(
     path: str | Path,
     *,
@@ -151,7 +247,6 @@ def save_checkpoint(
         },
         path,
     )
-
 
 def train_model(
     *,
@@ -190,40 +285,111 @@ def train_model(
     metrics_path = Path(output_paths["metrics_path"])
     if metrics_path.exists():
         metrics_path.unlink()
+    wandb_logger = WandbLogger(params=params, output_paths=output_paths, metadata=metadata)
 
     start = time.time()
     iteration = 0
-    for epoch in range(max_epochs):
-        model.train()
-        epoch_total = 0.0
-        epoch_profile = 0.0
-        epoch_count = 0.0
-        n_batches = 0
+    try:
+        for epoch in range(max_epochs):
+            model.train()
+            epoch_total = 0.0
+            epoch_profile = 0.0
+            epoch_count = 0.0
+            n_batches = 0
 
-        for batch in train_loader:
-            batch = move_batch(batch, device)
-            optimizer.zero_grad(set_to_none=True)
-            total_loss, profile_loss, count_loss = compute_losses(model, batch, counts_weight)
-            total_loss.backward()
-            optimizer.step()
+            for batch in train_loader:
+                batch = move_batch(batch, device)
+                optimizer.zero_grad(set_to_none=True)
+                total_loss, profile_loss, count_loss = compute_losses(model, batch, counts_weight)
+                total_loss.backward()
+                optimizer.step()
 
-            epoch_total += float(total_loss.detach().cpu())
-            epoch_profile += float(profile_loss.detach().cpu())
-            epoch_count += float(count_loss.detach().cpu())
-            n_batches += 1
+                epoch_total += float(total_loss.detach().cpu())
+                epoch_profile += float(profile_loss.detach().cpu())
+                epoch_count += float(count_loss.detach().cpu())
+                n_batches += 1
 
-            should_validate = validation_iter is not None and iteration % validation_iter == 0
-            if should_validate:
+                should_validate = validation_iter is not None and iteration % validation_iter == 0
+                if should_validate:
+                    valid_metrics = validate(model, valid_loader, device, counts_weight)
+                    if scheduler is not None:
+                        scheduler.step(valid_metrics["valid_loss"])
+
+                    train_metrics = {
+                        "row_type": "validation",
+                        "epoch": epoch,
+                        "iteration": iteration,
+                        "train_loss": float(total_loss.detach().cpu()),
+                        "train_profile_loss": float(profile_loss.detach().cpu()),
+                        "train_count_loss": float(count_loss.detach().cpu()),
+                        **valid_metrics,
+                        "lr": optimizer.param_groups[0]["lr"],
+                        "elapsed_seconds": round(time.time() - start, 3),
+                        "saved_best": valid_metrics["valid_loss"] < best_valid_loss,
+                    }
+
+                    if train_metrics["saved_best"]:
+                        best_valid_loss = valid_metrics["valid_loss"]
+                        best_epoch = epoch
+                        save_checkpoint(
+                            output_paths["best_checkpoint_path"],
+                            model=model,
+                            optimizer=optimizer,
+                            epoch=epoch,
+                            best_valid_loss=best_valid_loss,
+                            metadata=metadata,
+                        )
+
+                    append_metrics(metrics_path, train_metrics, write_header=not metrics_path.exists())
+                    wandb_logger.log(train_metrics)
+                    print(json.dumps(train_metrics), flush=True)
+
+                    if best_epoch <= epoch - patience:
+                        print(f"Early stopping at epoch {epoch}; best epoch was {best_epoch}.", flush=True)
+                        break
+
+                iteration += 1
+
+            if validation_iter is not None and best_epoch <= epoch - patience:
+                save_checkpoint(
+                    output_paths["last_checkpoint_path"],
+                    model=model,
+                    optimizer=optimizer,
+                    epoch=epoch,
+                    best_valid_loss=best_valid_loss,
+                    metadata=metadata,
+                )
+                break
+
+            if n_batches == 0:
+                raise RuntimeError("Training dataloader produced no batches.")
+            epoch_metrics = {
+                "row_type": "epoch",
+                "epoch": epoch,
+                "iteration": iteration,
+                "train_loss_epoch": epoch_total / n_batches,
+                "train_profile_loss_epoch": epoch_profile / n_batches,
+                "train_count_loss_epoch": epoch_count / n_batches,
+                "lr": optimizer.param_groups[0]["lr"],
+                "elapsed_seconds": round(time.time() - start, 3),
+                "epoch_complete": True,
+            }
+            append_metrics(metrics_path, epoch_metrics, write_header=not metrics_path.exists())
+            wandb_logger.log(epoch_metrics)
+            print(json.dumps(epoch_metrics), flush=True)
+
+            if validation_iter is None:
                 valid_metrics = validate(model, valid_loader, device, counts_weight)
                 if scheduler is not None:
                     scheduler.step(valid_metrics["valid_loss"])
 
                 train_metrics = {
+                    "row_type": "validation",
                     "epoch": epoch,
                     "iteration": iteration,
-                    "train_loss": float(total_loss.detach().cpu()),
-                    "train_profile_loss": float(profile_loss.detach().cpu()),
-                    "train_count_loss": float(count_loss.detach().cpu()),
+                    "train_loss": epoch_total / n_batches,
+                    "train_profile_loss": epoch_profile / n_batches,
+                    "train_count_loss": epoch_count / n_batches,
                     **valid_metrics,
                     "lr": optimizer.param_groups[0]["lr"],
                     "elapsed_seconds": round(time.time() - start, 3),
@@ -242,16 +408,10 @@ def train_model(
                         metadata=metadata,
                     )
 
-                append_metrics(metrics_path, train_metrics, write_header=iteration == 0)
+                append_metrics(metrics_path, train_metrics, write_header=not metrics_path.exists())
+                wandb_logger.log(train_metrics)
                 print(json.dumps(train_metrics), flush=True)
 
-                if best_epoch <= epoch - patience:
-                    print(f"Early stopping at epoch {epoch}; best epoch was {best_epoch}.", flush=True)
-                    break
-
-            iteration += 1
-
-        if validation_iter is not None and best_epoch <= epoch - patience:
             save_checkpoint(
                 output_paths["last_checkpoint_path"],
                 model=model,
@@ -260,52 +420,9 @@ def train_model(
                 best_valid_loss=best_valid_loss,
                 metadata=metadata,
             )
-            break
 
-        if n_batches == 0:
-            raise RuntimeError("Training dataloader produced no batches.")
-
-        if validation_iter is None:
-            valid_metrics = validate(model, valid_loader, device, counts_weight)
-            if scheduler is not None:
-                scheduler.step(valid_metrics["valid_loss"])
-
-            train_metrics = {
-                "epoch": epoch,
-                "iteration": iteration,
-                "train_loss": epoch_total / n_batches,
-                "train_profile_loss": epoch_profile / n_batches,
-                "train_count_loss": epoch_count / n_batches,
-                **valid_metrics,
-                "lr": optimizer.param_groups[0]["lr"],
-                "elapsed_seconds": round(time.time() - start, 3),
-                "saved_best": valid_metrics["valid_loss"] < best_valid_loss,
-            }
-
-            if train_metrics["saved_best"]:
-                best_valid_loss = valid_metrics["valid_loss"]
-                best_epoch = epoch
-                save_checkpoint(
-                    output_paths["best_checkpoint_path"],
-                    model=model,
-                    optimizer=optimizer,
-                    epoch=epoch,
-                    best_valid_loss=best_valid_loss,
-                    metadata=metadata,
-                )
-
-            append_metrics(metrics_path, train_metrics, write_header=epoch == 0)
-            print(json.dumps(train_metrics), flush=True)
-
-        save_checkpoint(
-            output_paths["last_checkpoint_path"],
-            model=model,
-            optimizer=optimizer,
-            epoch=epoch,
-            best_valid_loss=best_valid_loss,
-            metadata=metadata,
-        )
-
-        if validation_iter is None and best_epoch <= epoch - patience:
-            print(f"Early stopping at epoch {epoch}; best epoch was {best_epoch}.", flush=True)
-            break
+            if validation_iter is None and best_epoch <= epoch - patience:
+                print(f"Early stopping at epoch {epoch}; best epoch was {best_epoch}.", flush=True)
+                break
+    finally:
+        wandb_logger.finish()

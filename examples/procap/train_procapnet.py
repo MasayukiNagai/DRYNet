@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
 from pathlib import Path
 
@@ -64,6 +65,16 @@ PROCAPNET_PARAMS = {
         "scheduler_kwargs": None,
         "lr_scheduler_kwargs": None,
     },
+    "wandb": {
+        "enabled": True,
+        "project": "capybara-procap",
+        "entity": None,
+        "mode": "online",
+        "tags": [],
+        "group": None,
+        "name": None,
+        "notes": None,
+    },
 }
 
 
@@ -76,6 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timestamp", type=str, default=None)
     parser.add_argument("--device", type=str, default="gpu", help="Device: gpu, cpu, auto, or a torch device string.")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging for this run.")
     return parser.parse_args()
 
 
@@ -83,7 +95,9 @@ def main() -> None:
     args = parse_args()
 
     require_training_dependencies()
-    params = PROCAPNET_PARAMS
+    params = copy.deepcopy(PROCAPNET_PARAMS)
+    if args.no_wandb:
+        params.setdefault("wandb", {})["enabled"] = False
     dataset_params = params["dataset"]
 
     files = FoldFilesConfig.create(
