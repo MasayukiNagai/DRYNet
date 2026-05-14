@@ -348,6 +348,22 @@ def mean_squared_error(arr1, arr2):
     return np.mean(np.square(arr1 - arr2), axis=-1)
 
 
+def r2_score(arr1, arr2):
+    """
+    Computes the R2 score in the last dimension of `arr1` and `arr2`.
+    `arr1` and `arr2` must be the same shape. For example, if they are both
+    A x B x L arrays, then the R2 of corresponding L-arrays will be computed
+    and returned in an A x B array.
+    """
+
+    ss_res = np.sum(np.square(arr1 - arr2), axis=-1)
+    ss_tot = np.sum(np.square(arr1 - np.mean(arr1, axis=-1, keepdims=True)), axis=-1)
+    ratio = np.divide(
+        ss_res, ss_tot, out=np.full_like(ss_res, np.nan), where=(ss_tot != 0)
+    )
+    return 1 - ratio
+
+
 def profile_corr_mse(
     true_prof_probs, pred_prof_probs, prof_smooth_kernel_sigma,
     prof_smooth_kernel_width, smooth_true_profs=True, smooth_pred_profs=False,
@@ -451,6 +467,26 @@ def count_corr_mse(log_true_total_counts, log_pred_total_counts):
     strands.
     """
 
+    pears, spear, mse, _ = count_corr_mse_r2(
+        log_true_total_counts, log_pred_total_counts
+    )
+    return pears, spear, mse
+
+
+def count_corr_mse_r2(log_true_total_counts, log_pred_total_counts):
+    """
+    Returns the correlations, MSE, and R2 of the true and predicted TOTAL counts.
+    Arguments:
+        `log_true_total_counts`: a N x T x 2 array, containing the true total
+            LOG COUNTS for each task and strand
+        `log_pred_total_counts`: a N x T x 2 array, containing the predicted
+            total LOG COUNTS for each task and strand
+    Returns 4 T-arrays, containing the Pearson correlation, Spearman
+    correlation, mean squared error, and R2 score of the total count predictions
+    (as log counts). Correlations/MSE/R2 are computed for each task, over the
+    samples and strands.
+    """
+
     # Reshape inputs to be T x N * 2 (i.e. pool samples and strands)
     num_tasks = log_true_total_counts.shape[1]
     log_true_total_counts = np.reshape(
@@ -463,8 +499,9 @@ def count_corr_mse(log_true_total_counts, log_pred_total_counts):
     pears = pearson_corr(log_true_total_counts, log_pred_total_counts)
     spear = spearman_corr(log_true_total_counts, log_pred_total_counts)
     mse = mean_squared_error(log_true_total_counts, log_pred_total_counts)
+    r2 = r2_score(log_true_total_counts, log_pred_total_counts)
 
-    return pears, spear, mse
+    return pears, spear, mse, r2
 
 def compute_performance_metrics(
     true_profs, log_pred_profs, true_counts, log_pred_counts,
@@ -515,6 +552,8 @@ def compute_performance_metrics(
             all strands and samples
         A T-array of the mean squared error of the (log) total counts, over all
             strands and samples
+        A T-array of the R2 score of the (log) total counts, over all strands
+            and samples
     """
     assert true_profs.shape == log_pred_profs.shape, (true_profs.shape, log_pred_profs.shape)
     assert true_counts.shape == log_pred_counts.shape, (true_counts.shape, log_pred_counts.shape)
@@ -552,7 +591,7 @@ def compute_performance_metrics(
 
     # Total count correlations/MSE
     log_true_counts = np.log(true_counts + 1)
-    count_pears, count_spear, count_mse = count_corr_mse(
+    count_pears, count_spear, count_mse, count_r2 = count_corr_mse_r2(
         log_true_counts, log_pred_counts
     )
 
@@ -565,5 +604,6 @@ def compute_performance_metrics(
         "profile_mse": prof_mse,
         "count_pearson": count_pears,
         "count_spearman": count_spear,
-        "count_mse": count_mse
+        "count_mse": count_mse,
+        "count_r2": count_r2
     }
