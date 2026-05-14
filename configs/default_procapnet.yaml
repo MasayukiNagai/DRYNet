@@ -1,0 +1,67 @@
+project: PRO-cap
+monitor: valid_loss
+mode: min
+
+model:
+  n_filters: 512
+  n_layers: 8
+  n_outputs: 2
+  trimming: 557
+
+dataset:
+  input_length: 2114
+  output_length: 1000
+  max_jitter: 200
+  reverse_complement: true
+  use_dnase: true
+  source_fracs: [0.875, 0.125]
+  use_unmappability_mask: true
+  seed: 0
+
+train:
+  batch_size: 32
+  learning_rate: 0.0005
+  profile_loss_fn: MNLLLoss
+  count_loss_fn: log1pMSELoss
+  counts_weight: 100.0
+  max_epochs: 500
+  validation_iter: 100
+  precision: 32
+
+fine_tune:
+  mode: final_layer
+  learning_rate: 5.0e-7
+  max_epochs: 50
+  patience: 10
+  weight_decay: 0.0
+  validation_iter: 300
+  batch_size:
+  num_workers:
+
+early_stopping:
+  patience: 20
+
+checkpoint:
+  save_top_k: 1
+  filename: "{epoch:02d}-{valid_loss:.2f}"
+
+dataloader:
+  num_workers: 4
+  prefetch_factor: 2
+  pin_memory: true
+  persistent_workers: true
+
+lr_scheduler:
+  scheduler_name:
+  scheduler_kwargs:
+  lr_scheduler_kwargs:
+
+wandb:
+  enabled: true
+  project: capybara-procap
+  entity:
+  mode: online
+  tags: []
+  group:
+  name:
+  notes:
