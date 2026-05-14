@@ -6,8 +6,8 @@ model:
   num_groups: 8
   encoder_channels: [128, 192, 256]
   pool_size: 2
-  decoder_channels: [256, 192, 128, 64]
-  output_embedder_channels: 256
+  decoder_channels: [256, 192, 128, 128]
+  output_embedder_channels: 128
   embedding_projector:
     enabled: true
   norm_type: batch
@@ -21,7 +21,7 @@ model:
 
   count_head:
     type: ynet
-    source:
+    source: bottleneck
     conv_hidden_dims: [128, 64]
     mlp_hidden_dims: [64]
     kernel_size: 5
@@ -63,6 +63,16 @@ train:
   validation_iter: null
   base_trainable: true
   precision: 32
+
+fine_tune:
+  mode: final_layer
+  learning_rate: 5.0e-6
+  max_epochs: 50
+  patience: 10
+  weight_decay: 0.0
+  validation_iter: 300
+  batch_size: 32
+  num_workers: 4
 
 early_stopping:
   patience: 20

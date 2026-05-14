@@ -18,22 +18,30 @@ if command -v job_notify_slurm >/dev/null 2>&1; then
 fi
 
 proj_dir="${PROCAP_PROJ_DIR:-/grid/koo/home/shared/capybara/procap}"
-timestamp="${1:-}"
-cell_type="${2:-K562}"
-data_type="${3:-procap}"
-fold="${4:-1}"
-gpu="${5:-0}"
+params="${1:-}"
+timestamp="${2:-}"
+cell_type="${3:-K562}"
+data_type="${4:-procap}"
+fold="${5:-1}"
+gpu="${6:-0}"
+stage="${7:-both}"
 
 REPO_ROOT="/grid/koo/home/nagai/projects/capybara"
 script="${REPO_ROOT}/examples/procap/train_procapnet.py"
 PYTHON="${REPO_ROOT}/.venv/bin/python"
 
+if [[ -z "$params" ]]; then
+  params="${REPO_ROOT}/configs/default_procapnet.yaml"
+fi
+
 cmd=("$PYTHON"
   "$script"
   --proj_dir "$proj_dir"
+  --params "$params"
   --cell_type "$cell_type"
   --data_type "$data_type"
-  --fold "$fold")
+  --fold "$fold"
+  --stage "$stage")
 
 if [[ -n "$timestamp" ]]; then
   cmd+=(--timestamp "$timestamp")

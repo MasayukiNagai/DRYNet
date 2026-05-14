@@ -17,21 +17,20 @@ if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v job_notify_slurm >/dev/null 2>&1; 
   notify_job_start || true
 fi
 
+REPO_ROOT="/grid/koo/home/nagai/projects/capybara"
+
+timestamp="${1:-}"
 proj_dir="${PROCAP_PROJ_DIR:-/grid/koo/home/shared/capybara/procap}"
-params="${1:-}"
-timestamp="${2:-}"
+params="${2:-${REPO_ROOT}/configs/default_procap.yaml}"
 cell_type="${3:-K562}"
 data_type="${4:-procap}"
 fold="${5:-1}"
 gpu="${6:-0}"
+stage="${7:-both}"  # train, finetune, both
 
 REPO_ROOT="/grid/koo/home/nagai/projects/capybara"
 script="${REPO_ROOT}/examples/procap/train_capy.py"
 PYTHON="${REPO_ROOT}/.venv/bin/python"
-
-if [[ -z "$params" ]]; then
-  params="${REPO_ROOT}/configs/default_procap.yaml"
-fi
 
 cmd=("$PYTHON"
   "$script"
@@ -39,7 +38,8 @@ cmd=("$PYTHON"
   --params "$params"
   --cell_type "$cell_type"
   --data_type "$data_type"
-  --fold "$fold")
+  --fold "$fold"
+  --stage "$stage")
 
 if [[ -n "$timestamp" ]]; then
   cmd+=(--timestamp "$timestamp")
