@@ -226,3 +226,9 @@ pyrightconfig.json
 wandb/
 out/
 .codex
+.vscode/
+cl_procap
+data
+results/
+ProCapNet/
+
