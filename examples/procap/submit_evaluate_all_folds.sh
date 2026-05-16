@@ -22,5 +22,5 @@ folds="${FOLDS:-1 2 3 4 5 6 7}"
 for fold in $folds; do
   sbatch --job-name "eval_${model_name}_${cell_type}_f${fold}" \
     "$REPO_ROOT/examples/procap/run_evaluate.sh" "$model_name" "$timestamp" "$cell_type" "$data_type" "$fold" "$split" "$gpu" "$reverse_complement"
-  sleep 1
+  # sleep 1
 done

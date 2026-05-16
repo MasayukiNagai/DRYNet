@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 from pathlib import Path
 from typing import Iterable
 
@@ -44,6 +45,24 @@ def load_bed(path: str | Path) -> dict[str, np.ndarray]:
     }
 
 
+def load_bed_lines(path: str | Path) -> list[list[str]]:
+    path = Path(path)
+    opener = gzip.open if path.suffix == ".gz" else open
+    mode = "rt" if path.suffix == ".gz" else "r"
+    with opener(path, mode) as handle:
+        return [line.strip().split() for line in handle if line.strip()]
+
+
+def load_centered_coords(path: str | Path, window: int) -> list[tuple[str, int, int]]:
+    coords = []
+    for line in load_bed_lines(path):
+        chrom, start, end = line[0], int(line[1]), int(line[2])
+        mid = (start + end) // 2
+        window_start = mid - int(window) // 2
+        coords.append((chrom, window_start, window_start + int(window)))
+    return coords
+
+
 def _open_bigwig(path: str | Path):
     import pyBigWig
 
@@ -56,6 +75,47 @@ def _open_bigwig(path: str | Path):
 def _get_signal(bw, chrom: str, start: int, end: int) -> np.ndarray:
     values = bw.values(chrom, start, end, numpy=True)
     return np.nan_to_num(values).astype(np.float32, copy=False)
+
+
+def _get_signal_padded(bw, chrom: str, start: int, end: int) -> np.ndarray:
+    chrom_sizes = bw.chroms()
+    width = int(end) - int(start)
+    if chrom not in chrom_sizes:
+        return np.zeros(width, dtype=np.float32)
+
+    chrom_len = int(chrom_sizes[chrom])
+    query_start = max(int(start), 0)
+    query_end = min(int(end), chrom_len)
+    if query_start >= query_end:
+        return np.zeros(width, dtype=np.float32)
+
+    values = bw.values(chrom, query_start, query_end, numpy=True)
+    values = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
+    left_pad = query_start - int(start)
+    right_pad = int(end) - query_end
+    if left_pad > 0 or right_pad > 0:
+        values = np.pad(values, (left_pad, right_pad), mode="constant")
+    return values
+
+
+def extract_observed_profiles(
+    plus_bw_path: str | Path,
+    minus_bw_path: str | Path,
+    bed_path: str | Path,
+    output_length: int,
+) -> np.ndarray:
+    plus_bw = _open_bigwig(plus_bw_path)
+    minus_bw = _open_bigwig(minus_bw_path)
+    profiles = []
+    try:
+        for chrom, start, end in load_centered_coords(bed_path, output_length):
+            plus = _get_signal_padded(plus_bw, chrom, start, end)
+            minus = _get_signal_padded(minus_bw, chrom, start, end)
+            profiles.append(np.stack([plus, minus], axis=0))
+    finally:
+        plus_bw.close()
+        minus_bw.close()
+    return np.asarray(profiles, dtype=np.float32)
 
 
 def _extract_one_locus(

@@ -41,6 +41,7 @@ SUMMARY_METRIC_COLUMNS = [
     "count_mse",
     "count_r2",
 ]
+SPLITS = ["train", "val", "test", "all", "dnase_train", "dnase_val", "dnase_test"]
 
 
 def json_default(value: Any) -> Any:
@@ -59,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data_type", type=str, default="procap")
     parser.add_argument("--fold", type=int, default=1)
     parser.add_argument("--timestamp", type=str, required=True)
-    parser.add_argument("--split", choices=["train", "val", "test", "all"], default="test")
+    parser.add_argument("--split", choices=SPLITS, default="test")
     parser.add_argument("--reverse_complement", action="store_true")
     parser.add_argument("--save_predictions", action="store_true")
     parser.add_argument("--batch_size", type=int, default=None)
@@ -78,6 +79,12 @@ def split_peak_path(files: FoldFilesConfig, split: str) -> Path:
         return files.test_peak_path
     if split == "all":
         return files.all_peak_path
+    if split == "dnase_train":
+        return files.dnase_train_path
+    if split == "dnase_val":
+        return files.dnase_val_path
+    if split == "dnase_test":
+        return files.dnase_test_path
     raise ValueError(f"Unsupported split: {split}")
 
 
@@ -217,6 +224,7 @@ def evaluate_model(
     )
     return {
         "true_profiles": y_true,
+        "true_log_counts": np.log1p(y_true.sum(axis=(1, 2))),
         "pred_log_profiles": y_pred_log_profiles,
         "pred_log_counts": y_pred_log_counts,
         "metrics": metrics,
@@ -282,10 +290,13 @@ def save_outputs(
     if args.save_predictions:
         pred_profiles_path = eval_dir / f"{prefix}_log_pred_profiles{rc_suffix}_{split}.npy"
         pred_counts_path = eval_dir / f"{prefix}_log_pred_counts{rc_suffix}_{split}.npy"
+        true_counts_path = eval_dir / f"{prefix}_log_true_counts{rc_suffix}_{split}.npy"
         np.save(pred_profiles_path, results["pred_log_profiles"])
         np.save(pred_counts_path, results["pred_log_counts"].reshape(num_examples, -1).squeeze(axis=1))
+        np.save(true_counts_path, results["true_log_counts"])
         saved_paths["log_pred_profiles"] = str(pred_profiles_path)
         saved_paths["log_pred_counts"] = str(pred_counts_path)
+        saved_paths["log_true_counts"] = str(true_counts_path)
 
     log_payload = {
         "args": vars(args),
