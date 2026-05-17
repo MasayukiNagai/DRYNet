@@ -62,6 +62,21 @@ performance was not very sensitive to the exact hyperparameter set within the
 tested neighborhood. It is unclear how broadly that observation generalizes, so
 feedback and results from other settings are welcome.
 
+## PRO-cap Benchmark
+
+On the K562 PRO-cap benchmark in `examples/procap/benchmark_procap.ipynb`,
+CAPY improves profile prediction and combined positive/negative count metrics
+relative to the local ProCapNet baseline. Values are fold mean +/- std across 7
+folds. A detailed report in `examples/procap/README.md`.
+
+| Metric | ProCapNet | CAPY | CAPY change |
+| --- | ---: | ---: | ---: |
+| Profile JSD, lower is better | 0.693 +/- 0.004 | 0.653 +/- 0.004 | -0.039 |
+| Profile Pearson | 0.540 +/- 0.006 | 0.595 +/- 0.006 | +0.054 |
+| Count Pearson, positive + negative peaks | 0.726 +/- 0.015 | 0.759 +/- 0.007 | +0.033 |
+| Count Spearman, positive + negative peaks | 0.623 +/- 0.030 | 0.728 +/- 0.017 | +0.105 |
+| Count R2, positive + negative peaks | -0.087 +/- 0.073 | 0.467 +/- 0.044 | +0.554 |
+
 ## Checkpoints
 
 Use plain PyTorch state dicts:
